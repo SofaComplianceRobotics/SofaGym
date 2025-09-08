@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 
-import gym
+import gymnasium as gym
 from colorama import Fore
 from stable_baselines3.common.utils import set_random_seed
 
@@ -35,13 +35,20 @@ def make_env(env_id: str, rank: int = 0, seed: int = 0, max_episode_steps: Optio
         else:
             env_config['seed'] = env_seed
 
-        env = gym.make(env_id, config=env_config)
+        print(f"[utils - make_env] Making env {env_id} with config {env_config}")
+
+        if "render_mode" in env_config:
+            env = gym.make("GymV21Environment-v0", env_id=env_id, render_mode=env_config["render_mode"])
+        else:
+            env = gym.make("GymV21Environment-v0", env_id=env_id)
+            
         env.seed(env_seed)
         env.reset()
 
         if max_episode_steps:
             env = gym.wrappers.TimeLimit(env, max_episode_steps=max_episode_steps)
 
+        print(f"[utils - make_env] Returned env {vars(env.env.env.env)}")
         return env
     
     set_random_seed(seed)

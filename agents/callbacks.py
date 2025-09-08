@@ -3,7 +3,7 @@ import warnings
 
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.vec_env import (VecMonitor, VecVideoRecorder,
+from stable_baselines3.common.vec_env import (VecMonitor, VecVideoRecorder, SubprocVecEnv,
                                               sync_envs_normalization)
 
 
@@ -47,6 +47,7 @@ class SaveCallback(CheckpointCallback):
     ):
         super().__init__(save_freq, save_path, name_prefix, save_replay_buffer, save_vecnormalize,verbose)
 
+
     def _checkpoint_path(self, checkpoint_type: str = "", extension: str = "") -> str:
         """Helper to get checkpoint path for each type of checkpoint.
 
@@ -64,6 +65,7 @@ class SaveCallback(CheckpointCallback):
             Path to the checkpoint.
         """
         return os.path.join(self.save_path, f"{checkpoint_type}{self.num_timesteps}.{extension}")
+
 
     def _on_step(self) -> bool:
         if self.n_calls % self.save_freq == 0:
@@ -87,7 +89,6 @@ class SaveCallback(CheckpointCallback):
                 self.model.get_vec_normalize_env().save(vec_normalize_path)
                 if self.verbose >= 2:
                     print(f"Saving latest model VecNormalize to {vec_normalize_path}")
-
         return True
 
 
@@ -106,10 +107,12 @@ class SaveBestNormalizeCallback(BaseCallback):
         super().__init__(verbose=verbose)
         self.save_path = save_path
 
+
     def _init_callback(self) -> None:
         # Create folder if needed
         if self.save_path is not None:
             os.makedirs(self.save_path, exist_ok=True)
+
 
     def _on_step(self) -> bool:
         if hasattr(self.model, "replay_buffer") and self.model.replay_buffer is not None:
@@ -143,16 +146,17 @@ class VideoRecordCallback(BaseCallback):
     verbose: int, default=0
         Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages.
     """
-    def __init__(self, save_path: str, video_length: int, log_dir: str, verbose: int = 0):
+    def __init__(self, save_path: str, video_length: int, log_dir: str, env, verbose: int = 0):
         super().__init__(verbose=verbose)
         self.save_path = save_path
         self.video_length = video_length
         self.log_dir = log_dir
+        self.eval_env = env
+
 
     def _init_callback(self) -> None:
         assert self.parent is not None, "``VideoRecordCallback`` callback must be used with an ``EvalCallback``"
         
-        self.eval_env = self.parent.eval_env
         self.eval_env = VecVideoRecorder(self.eval_env, self.save_path,
                                          record_video_trigger=lambda x: x == 0, video_length=self.video_length,
                                          name_prefix="eval_callback_video")
@@ -166,6 +170,7 @@ class VideoRecordCallback(BaseCallback):
         if self.save_path is not None:
             os.makedirs(self.save_path, exist_ok=True)
 
+
     def _on_step(self) -> bool:
         # Sync training and eval env if there is VecNormalize
         if self.model.get_vec_normalize_env() is not None:
@@ -178,19 +183,22 @@ class VideoRecordCallback(BaseCallback):
                     "and warning above."
                 ) from e
 
+        print(f"[callbacks - VideoRecorderCallback - _on_step] Step {self.n_calls} Starting eval from VideoRecorderCallback")
         episode_rewards, episode_lengths = evaluate_policy(
             self.model,
             self.eval_env,
             n_eval_episodes=1,
-            render=True,
-            deterministic=True,
+            render=False, # already handled by VecVideoRecorder
+            deterministic=False, # apparently don't use when reward is mostly negative https://www.reddit.com/r/reinforcementlearning/comments/1859bj1/deterministic_parameter_always_output_the_same/
             return_episode_rewards=True,
             warn=True
         )
+        print(f"[callbacks - VideoRecorderCallback - _on_step] Step {self.n_calls}  Stopped eval from VideoRecorderCallback")
 
         self.eval_env.close_video_recorder()
 
         return True
+    
 
     def _on_training_end(self) -> None:
         self.eval_env.close()

@@ -14,7 +14,7 @@ from agents.SofaBaseAgent import SofaBaseAgent
 from agents.utils import make_env, mkdirp, sec_to_hours
 from colorama import Fore
 from stable_baselines3 import A2C, DDPG, DQN, PPO, SAC, TD3
-from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.callbacks import EvalCallback, EveryNTimesteps
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.utils import constant_fn
 from stable_baselines3.common.vec_env import (SubprocVecEnv,
@@ -260,6 +260,8 @@ class SB3Agent(SofaBaseAgent):
             checkpoint_path = f"{self.checkpoints_dir}/{self.model_timestep}"
             self.model = self.algo.load(checkpoint_path, self.env, tensorboard_log=self.log_dir)
 
+        print(f"[DEBUG] [init_model]  Model: {self.model.n_steps}, {self.init_kwargs}")
+
     def fit(self, total_timesteps=None):
         """Train the model.
         
@@ -284,14 +286,8 @@ class SB3Agent(SofaBaseAgent):
                                            save_replay_buffer=True, save_vecnormalize=True,
                                            verbose=2)
         save_normalization = SaveBestNormalizeCallback(save_path=self.checkpoints_dir, verbose=2)
-        video_record_callback = VideoRecordCallback(self.video_dir, self.video_length, self.log_dir, verbose=2)
-        eval_callback = EvalCallback(self.test_env, best_model_save_path=self.checkpoints_dir,
-                                     log_path=self.log_dir, eval_freq=eval_freq,
-                                     n_eval_episodes=n_eval_episodes, deterministic=True,
-                                     callback_on_new_best=save_normalization,
-                                     callback_after_eval=video_record_callback,
-                                     verbose=1,
-                                     render=False)
+        video_record_callback = VideoRecordCallback(self.video_dir, self.video_length, self.log_dir, self.test_env, verbose=2)
+        n_step_callback = EveryNTimesteps(n_steps=eval_freq, callback=video_record_callback)
 
         print("\n-------------------------------")
         print(">>>    Start")
@@ -305,13 +301,16 @@ class SB3Agent(SofaBaseAgent):
         print("[INFO]  >>    algo: ", self.algo_name)
         print("[INFO]  >>    seed: ", self.seed)
         print("-------------------------------\n")
+        print(f"[DEBUG] [fit]  Model: {self.model}, {self.init_kwargs}")
 
         self.model.learn(total_timesteps=total_timesteps, reset_num_timesteps=False,
                          progress_bar=True, log_interval=1, tb_log_name="log",
-                         callback=[eval_callback, save_callback])
+                         callback=[n_step_callback, save_callback])
+    
 
         print(">>   End.")
         print("[INFO]  >>    time: ", sec_to_hours(time.time()-start_time))
+
 
     def eval(self, n_episodes, **kwargs):
         """Evaluate the trained model's performance.
@@ -337,7 +336,7 @@ class SB3Agent(SofaBaseAgent):
         eval_env.training = False
         eval_env.norm_reward = False
         eval_env = VecMonitor(eval_env, self.log_dir)
-        
+
         eval_model = self.algo.load(checkpoint_path, eval_env, tensorboard_log=self.log_dir)
 
         print("\n-------------------------------")
@@ -345,7 +344,7 @@ class SB3Agent(SofaBaseAgent):
 
         mean_reward, std_reward = evaluate_policy(eval_model, eval_env,
                                                   n_eval_episodes=n_episodes,
-                                                  deterministic=True, render=False)
+                                                  deterministic=False, render=False)
 
         if record and not render:
             render = True
@@ -362,7 +361,7 @@ class SB3Agent(SofaBaseAgent):
                 eval_model = self.algo.load(checkpoint_path, eval_env, tensorboard_log=self.log_dir)
   
             _, _ = evaluate_policy(eval_model, eval_env, n_eval_episodes=1,
-                                   deterministic=True, render=True)
+                                   deterministic=False, render=True)
 
             if record:
                 eval_env.close_video_recorder()
@@ -371,6 +370,7 @@ class SB3Agent(SofaBaseAgent):
 
         print(f"Reward: {mean_reward}, Standard Devation: {std_reward}")
         print(">>   End.")
+
 
     @classmethod
     def load(cls, model_dir, model_timestep='latest_model'):
@@ -418,6 +418,7 @@ class SB3Agent(SofaBaseAgent):
 
         return agent
     
+    
     def env_wrap(self, n_envs, normalize=True):
         """Create wrapped training and testing environments.
         
@@ -434,7 +435,7 @@ class SB3Agent(SofaBaseAgent):
             The wrapped training environment.
         """
         vec_env = SubprocVecEnv([make_env(self.env_id, i, self.seed, self.max_episode_steps) for i in range(n_envs)])
-        self.test_env = SubprocVecEnv([make_env(self.env_id, 0, self.seed, self.max_episode_steps, config={"render": 1})])
+        self.test_env = SubprocVecEnv([make_env(self.env_id, 0, self.seed, self.max_episode_steps, config={"render": 1, "render_mode": "rgb_array"})])
         
         if normalize:
             if self.model_timestep is None:
@@ -450,10 +451,12 @@ class SB3Agent(SofaBaseAgent):
                 self.test_env.training = False
                 self.test_env.norm_reward = False
 
+
         vec_env = VecMonitor(vec_env, self.log_dir)
         self.test_env = VecMonitor(self.test_env, self.log_dir)
 
         return vec_env
+    
 
     def policy(self, obs, deterministic=True):
         """Perform prediction using the trained model
@@ -472,6 +475,7 @@ class SB3Agent(SofaBaseAgent):
         """
         return self.model.predict(obs, deterministic=deterministic)
     
+
     def close(self):
         """Overrides `close` from `SofaTestAgent` class.
         Close the training and testing environments.

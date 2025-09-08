@@ -65,7 +65,7 @@ def init_simulation(config, _startCmd=None, mode="simu_and_visu"):
         root.StateInitializer.init_state(config["init_states"])
 
     if 'time_before_start' in config:
-        print(">>   Time before start:", config["time_before_start"], "steps. Initialization ...")
+        print(">>  simulate  Time before start:", config["time_before_start"], "steps. Initialization ...")
         for i in range(config["time_before_start"]):
             Sofa.Simulation.animate(root, config["dt"])
         print(">>   ... Done.")

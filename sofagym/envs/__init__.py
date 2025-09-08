@@ -17,6 +17,13 @@ from sofagym.envs.CatheterBeam.CatheterBeamEnv import *
 
 # registering sofagym envs as gymnasium envs
 from gym.envs.registration import register
+
+from sofagym.envs.PushT.PushTEnv import *
+register(
+    id='pusht-v0',
+    entry_point='sofagym.envs:PushTEnv',
+)
+
 register(
     id='bubblemotion-v0',
     entry_point='sofagym.envs:BubbleMotionEnv',

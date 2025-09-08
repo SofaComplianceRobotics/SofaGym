@@ -202,6 +202,7 @@ class AbstractEnv(gym.Env):
         self.configure({"save_path_image": save_path_image, "save_path_results": save_path_results})
 
     def init_root(self):
+        print(f"[AbstractEnv - init_root] Initializing simulation")
         self.init_simulation()
 
     def initialize_states(self):
@@ -357,12 +358,15 @@ class AbstractEnv(gym.Env):
         done, reward = self._getReward(self.root)
 
         # Avoid long explorations by using a timer.
-        self.timer += 1
-        if self.timer >= self.config["timer_limit"]:
-            # reward = -150
-            truncated = True
+        # self.timer += 1
+        # if self.timer >= self.config["timer_limit"]:
+        #     reward = -300
+        #     truncated = True
+        #     done= True
         
         info = {} #(not use here)
+
+        print(f"[DEBUG]    [AbstractEnv - step] Step {self.timer} reward: {reward}, done: {done}, render: {self.config['render']}\npos: {self.pos}")
 
         return obs, reward, done, info
     
@@ -378,6 +382,7 @@ class AbstractEnv(gym.Env):
             obs, info
 
         """
+        print(f"[DEBUG]    [AbstractEnv - reset] Reset the environment")
         self.viewer = None
 
         splib3.animation.animate.manager = None
@@ -392,10 +397,10 @@ class AbstractEnv(gym.Env):
         self.init_simulation()
         
         obs = np.array(self._getState(self.root), dtype=np.float32)
-        
         return obs
+    
 
-    def render(self, mode):
+    def render(self, mode=None):
         """See the current state of the environment.
 
         Get the OpenGL Context to render an image (snapshot) of the simulation
@@ -421,7 +426,9 @@ class AbstractEnv(gym.Env):
                 zFar = 0
             self.viewer = Viewer(self, self.root, display_size, zFar=zFar, save_path=self.config["save_path_image"])
         # Use the viewer to display the environment.
+        print(f"[DEBUG]    [AbstractEnv - render] Step {self.timer} Render env {self.render_mode}, {self.config['render']}")
         return self.viewer.render()
+    
 
     def close(self):
         """Terminate simulation.
@@ -441,6 +448,7 @@ class AbstractEnv(gym.Env):
         
         print("All clients are closed. Bye Bye.")
 
+
     def configure(self, config):
         """Update the configuration.
 
@@ -455,6 +463,7 @@ class AbstractEnv(gym.Env):
 
         """
         self.config.update(config)
+
 
     def init_simulation(self, mode='simu_and_visu'):
         """Function to create scene and initialize all variables.
@@ -474,7 +483,7 @@ class AbstractEnv(gym.Env):
             root: <Sofa.Core>
                 The loaded and initialized scene.
 
-        """
+        """        
         # Load the scene
         self.root = Sofa.Core.Node("root")
 
@@ -508,6 +517,7 @@ class AbstractEnv(gym.Env):
             self.root.GoalSetter.update(self.goal)
         
         self.root.Reward.update(self.goal)
+
 
     def step_simulation(self, action):
         """Realise one step in the simulation.

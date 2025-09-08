@@ -41,7 +41,8 @@ envs = {
         12: 'trunk-v0',
         13: 'trunkcup-v0',
         14: 'cartpole-v0',
-        15: 'catheter_beam-v0'
+        15: 'catheter_beam-v0',
+        16: 'pusht-v0'
         }
 
 algos = {
@@ -119,7 +120,8 @@ if __name__ == '__main__':
             agent.fit(total_timesteps)
 
     if test:
-        agent.eval(n_tests, model_timestep='best_model', render=True, record=True)
+        # agent.eval(n_tests, model_timestep='best_model', render=True, record=True)
+        agent.policy()
 
     agent.close()
     print("... End.")

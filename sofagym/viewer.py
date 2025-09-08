@@ -112,6 +112,7 @@ class Viewer:
                                              ".mp4", format='mp4', mode='I', fps=fps)
         
         glClearColor(0, 0, 0, 1)
+        
 
     def render(self, pos=None):
         """See the current state of the environment.
@@ -142,6 +143,8 @@ class Viewer:
                     pos = self.env.pos
             
             self.frame += 1
+
+            print(f"[DEBUG]    [Viewer - render] Step {self.env.timer} Rendering pos: {pos}")
             
             if pos == []:
                 image = np.zeros((self.surface_size[0], self.surface_size[1], 3))
@@ -368,7 +371,6 @@ class LegacyViewer:
         self.writer.append_data(displayed_image)
 
     def render_agent(self):
-        print(self.agent_display)
         if self.agent_display:
             self.agent_display(self.agent_surface, None)
         self.screen.blit(self.agent_surface, (0, self.surface_size[1]))

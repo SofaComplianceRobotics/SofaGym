@@ -33,12 +33,13 @@ The following packages are required:
 * [gym](https://github.com/openai/gym) 
 
 ```bash
-pip install gym==0.21.0
+pip install gym==0.23.0
+pip install gymnasium==0.28.1
 ```
 
 * [stable_baseline](https://github.com/DLR-RM/stable-baselines3)
 ```bash
-pip install stable-baselines3[extra]==1.7.0
+pip install stable-baselines3[extra]==2.0.0
 ```
 
 * [rlberry](https://github.com/rlberry-py/rlberry)
@@ -64,6 +65,23 @@ pip install tensorboard
 python setup.py bdist_wheel
 pip install -v -e .
 ```
+
+## Troubleshoot
+Most of the agents here use the video recorder.
+
+Comment `line 149` of `emiosofagym\Lib\site-packages\gymnasium\wrappers\monitoring\video_recorder.py`
+
+```python
+  def close(self):
+  """Flush all data to disk and close any open frame encoders."""
+  if not self.enabled or self._closed:
+      return
+
+  # First close the environment
+  #TODO: uncomment if needed
+  self.env.close() # <---- comment this line
+``` 
+
 
 
 ## Quick Start
